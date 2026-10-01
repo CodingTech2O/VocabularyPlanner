@@ -1,20 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=, initial-scale=1.0">
-    <title>Upload File</title>
-</head>
-<body>
-    <h1>Upload File</h1>
-    <form method="POST" enctype="multipart/form-data">
+{% extends 'base.html' %}
+{% block title %}Upload File{% endblock %}
+{% block content %}
+<section class="panel">
+    <h1>Upload a CSV</h1>
+    <p class="muted">The file needs two columns with headers <code>word</code> and <code>meaning</code>.</p>
+    <form method="POST" enctype="multipart/form-data" class="form">
         {{ form.hidden_tag() }}
-        <p>
-            {{ form.file.label }}<br>
-            {{ form.file() }}
-        </p>
-        <p>{{ form.submit() }}</p>
+        <label class="file-drop">
+            {{ form.file(accept='.csv') }}
+            <span>Choose a .csv file</span>
+        </label>
+        {{ form.submit(class_='btn btn-primary') }}
     </form>
-    
-</body>
-</html>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const input = document.querySelector('.file-drop input');
+    input.addEventListener('change', () => {
+        input.nextElementSibling.textContent = input.files[0] ? input.files[0].name : 'Choose a .csv file';
+    });
+</script>
+{% endblock %}

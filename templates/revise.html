@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Revise{% endblock %}
+{% block content %}
+<section class="revise">
+    <div class="revise-head">
+        <h1>Revise</h1>
+        <p class="muted"><span id="progress">0</span> / {{ cards|length }} cards</p>
+    </div>
+
+    {% if cards %}
+    <div class="deck" id="deck">
+        <div class="stamp stamp-wrong">Again</div>
+        <div class="stamp stamp-known">Got it</div>
+    </div>
+
+    <div class="revise-controls" id="controls">
+        <button class="btn btn-wrong" id="btn-wrong" title="Left arrow">✕ Still learning</button>
+        <button class="btn" id="btn-flip" title="Space">Flip</button>
+        <button class="btn btn-known" id="btn-known" title="Right arrow">✓ I know it</button>
+    </div>
+    <p class="hint muted">Tap the card to see the meaning · swipe left if you got it wrong · swipe right if you know it</p>
+
+    <div class="summary panel" id="summary" hidden>
+        <h2>Session complete</h2>
+        <p><strong id="known-count">0</strong> learned and removed from your list ·
+           <strong id="wrong-count">0</strong> kept for next time</p>
+        <div class="actions">
+            <a class="btn btn-primary" href="{{ url_for('revise') }}">Revise again</a>
+            <a class="btn" href="{{ url_for('index') }}">Back to words</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="summary panel">
+        <h2>Nothing left to revise 🎉</h2>
+        {% if total_words %}
+        <p class="muted">You've marked all {{ total_words }} words as known.</p>
+        <form method="POST" action="{{ url_for('revise_reset') }}">
+            <button class="btn btn-primary" type="submit">Start over with all words</button>
+        </form>
+        {% else %}
+        <p class="muted">Add some words first.</p>
+        <a class="btn btn-primary" href="{{ url_for('add_word') }}">Add word</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% if cards %}
+<script>
+    const cards = {{ cards|tojson }};
+    const answerUrl = "{{ url_for('revise_answer') }}";
+    const deck = document.getElementById('deck');
+    const progress = document.getElementById('progress');
+    const SWIPE_THRESHOLD = 100;
+
+    let index = 0;
+    let knownCount = 0;
+    let wrongCount = 0;
+    let current = null;
+
+    function makeCard(card) {
+        const el = document.createElement('div');
+        el.className = 'flashcard';
+        el.innerHTML = `
+            <div class="flashcard-inner">
+                <div class="face front">
+                    <span class="label">Word</span>
+                    <h2></h2>
+                    <span class="tap">Tap to reveal</span>
+                </div>
+                <div class="face back">
+                    <span class="label">Meaning</span>
+                    <p></p>
+                </div>
+            </div>`;
+        el.querySelector('h2').textContent = card.word;
+        el.querySelector('.back p').textContent = card.meaning;
+        return el;
+    }
+
+    function showNext() {
+        progress.textContent = index;
+        if (index >= cards.length) {
+            document.getElementById('controls').hidden = true;
+            document.querySelector('.hint').hidden = true;
+            deck.hidden = true;
+            document.getElementById('known-count').textContent = knownCount;
+            document.getElementById('wrong-count').textContent = wrongCount;
+            document.getElementById('summary').hidden = false;
+            return;
+        }
+        current = makeCard(cards[index]);
+        deck.appendChild(current);
+        attachDrag(current);
+    }
+
+    function flip() {
+        if (current) current.classList.toggle('flipped');
+    }
+
+    function answer(known) {
+        if (!current) return;
+        const card = current;
+        const word = cards[index].word;
+        current = null;
+
+        fetch(answerUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({word, known}),
+        }).catch(() => console.error('Could not save answer for', word));
+
+        known ? knownCount++ : wrongCount++;
+        setStamp(0);
+        card.style.transition = 'transform .35s ease, opacity .35s ease';
+        card.style.transform = `translateX(${known ? 150 : -150}vw) rotate(${known ? 30 : -30}deg)`;
+        card.style.opacity = '0';
+        card.addEventListener('transitionend', () => card.remove(), {once: true});
+
+        index++;
+        showNext();
+    }
+
+    function setStamp(dx) {
+        const strength = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
+        deck.querySelector('.stamp-known').style.opacity = dx > 0 ? strength : 0;
+        deck.querySelector('.stamp-wrong').style.opacity = dx < 0 ? strength : 0;
+    }
+
+    function attachDrag(el) {
+        let startX = 0, startY = 0, dx = 0, dragging = false, moved = false;
+
+        el.addEventListener('pointerdown', e => {
+            dragging = true;
+            moved = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            dx = 0;
+            el.setPointerCapture(e.pointerId);
+            el.style.transition = 'none';
+        });
+
+        el.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) > 5) moved = true;
+            el.style.transform = `translate(${dx}px, ${dy * 0.2}px) rotate(${dx / 15}deg)`;
+            setStamp(dx);
+        });
+
+        const end = () => {
+            if (!dragging) return;
+            dragging = false;
+            if (Math.abs(dx) > SWIPE_THRESHOLD) {
+                answer(dx > 0);
+            } else {
+                el.style.transition = 'transform .25s ease';
+                el.style.transform = '';
+                setStamp(0);
+                if (!moved) flip();
+            }
+        };
+        el.addEventListener('pointerup', end);
+        el.addEventListener('pointercancel', end);
+    }
+
+    document.getElementById('btn-wrong').addEventListener('click', () => answer(false));
+    document.getElementById('btn-known').addEventListener('click', () => answer(true));
+    document.getElementById('btn-flip').addEventListener('click', flip);
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft') answer(false);
+        else if (e.key === 'ArrowRight') answer(true);
+        else if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); }
+    });
+
+    showNext();
+</script>
+{% endif %}
+{% endblock %}

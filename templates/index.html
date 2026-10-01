@@ -1,23 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vocabulary</title>
-</head>
-<body>
+{% extends 'base.html' %}
+{% block title %}Words{% endblock %}
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1>Your vocabulary</h1>
+        <p class="muted">{{ words|length }} words saved · {{ revise_count }} left to revise</p>
+    </div>
+    <div class="actions">
+        <a class="btn btn-primary" href="{{ url_for('revise') }}">Start revising</a>
+        <a class="btn" href="{{ url_for('add_word') }}">Add word</a>
+        <a class="btn" href="{{ url_for('upload_file') }}">Upload CSV</a>
+    </div>
+</section>
 
-    <h1>Vocabulary</h1>
-    <ul>
-        {% for word, meaning in words.items() %}
-            <li><strong>{{ word }}</strong>: {{ meaning }}</li>
-        {% endfor %}
-    </ul>
-    <form method="POST" action="{{ url_for('add_word') }}">
-        <button type="submit">Add New Word</button>
-    </form>
-    <form method="POST" action="{{ url_for('upload_file') }}">
-        <button type="submit">Upload File</button>  
-    </form>
-</body>
-</html>
+{% if words %}
+<input id="search" class="input search" type="search" placeholder="Search words or meanings…">
+<ul class="word-grid" id="word-list">
+    {% for word, meaning in words.items() %}
+    <li class="word-card">
+        <h3>{{ word }}</h3>
+        <p>{{ meaning }}</p>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+    <p>No words yet. Add one or upload a CSV to get started.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const search = document.getElementById('search');
+    if (search) {
+        search.addEventListener('input', () => {
+            const q = search.value.toLowerCase();
+            document.querySelectorAll('#word-list .word-card').forEach(card => {
+                card.hidden = !card.textContent.toLowerCase().includes(q);
+            });
+        });
+    }
+</script>
+{% endblock %}
