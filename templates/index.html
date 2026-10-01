@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vocabulary</title>
+</head>
+<body>
+
+    <h1>Vocabulary</h1>
+    <ul>
+        {% for word, meaning in words.items() %}
+            <li><strong>{{ word }}</strong>: {{ meaning }}</li>
+        {% endfor %}
+    </ul>
+    <form method="POST" action="{{ url_for('add_word') }}">
+        <button type="submit">Add New Word</button>
+    </form>
+    <form method="POST" action="{{ url_for('upload_file') }}">
+        <button type="submit">Upload File</button>  
+    </form>
+</body>
+</html>

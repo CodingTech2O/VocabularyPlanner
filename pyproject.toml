@@ -1,0 +1,13 @@
+[project]
+name = "vocabulary-planner"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.3",
+    "flask-wtf>=1.3.0",
+    "pandas>=3.0.6",
+    "python-dotenv>=1.2.4",
+    "wtforms>=3.2.2",
+]
